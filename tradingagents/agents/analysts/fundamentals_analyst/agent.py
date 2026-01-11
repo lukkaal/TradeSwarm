@@ -1,11 +1,15 @@
 from typing import Callable, Any
 from pathlib import Path
+import json
+from datetime import datetime
 from jinja2 import Template
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from .state import FundamentalsAnalystState
-
+from tradingagents.agents.utils.memory.init_db import conn, cursor
+from tradingagents.agents.utils.parse_report import _parse_report_to_sql_structure, _insert_report_to_db
 
 def create_fundamentals_analyst(llm: BaseChatModel) -> Callable[[FundamentalsAnalystState], dict[str, Any]]:
     """
@@ -111,6 +115,18 @@ def create_fundamentals_analyst(llm: BaseChatModel) -> Callable[[FundamentalsAna
             if hasattr(last_msg, 'content') and last_msg.content:
                 fundamentals_report = last_msg.content
         
+        # 使用 llm 来 parse 成 sql 结构体
+        parse_result = _parse_report_to_sql_structure(
+            llm=llm,
+            fundamentals_report=fundamentals_report,
+            symbol=ticker,
+            trade_date=current_date
+        )
+        
+        # 将 sql 入库
+        if parse_result:
+            _insert_report_to_db(parse_result)
+
         return {
             "messages": result["messages"],
             "fundamentals_report": fundamentals_report,

@@ -32,6 +32,3 @@ messages = [system_msg, human_msg]
 # 
 # print(response)
 
-
-
-
